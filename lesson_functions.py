@@ -97,7 +97,7 @@ def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
 # start and stop positions in both x and y,
 # window size (x and y dimensions),
 # and overlap fraction (for both x and y)
-def slide_window(img, x_start_stop=[None, None], y_start_stop=None,
+def slide_window(img_shape, x_start_stop=[None, None], y_start_stop=None,
                     xy_window=None, xy_overlap=(0.5, 0.5)):
     if xy_window is None:
         xy_window = (32, 32)
@@ -107,11 +107,11 @@ def slide_window(img, x_start_stop=[None, None], y_start_stop=None,
     if x_start_stop[0] == None:
         x_start_stop[0] = 0
     if x_start_stop[1] == None:
-        x_start_stop[1] = img.shape[1]
+        x_start_stop[1] = img_shape[1]
     if y_start_stop[0] == None:
         y_start_stop[0] = 0
     if y_start_stop[1] == None:
-        y_start_stop[1] = img.shape[0]
+        y_start_stop[1] = img_shape[0]
     # Compute the span of the region to be searched
     xspan = x_start_stop[1] - x_start_stop[0]
     yspan = y_start_stop[1] - y_start_stop[0]
@@ -202,15 +202,19 @@ def single_img_features(img, color_space='RGB', spatial_size=(32, 32),
 
 # Define a function you will pass an image
 # and the list of windows to be searched (output of slide_windows())
-def search_windows(img, windows, clf, scaler, color_space='RGB',
-                    spatial_size=(32, 32), hist_bins=32,
+def search_windows(img, windows, clf, color_space='RGB',
+                    spatial_size=None, hist_bins=32,
                     hist_range=(0, 256), orient=9,
                     pix_per_cell=8, cell_per_block=2,
                     hog_channel=0, spatial_feat=True,
                     hist_feat=True, hog_feat=True):
 
+    if spatial_size is None:
+        spatial_size = (32, 32)
+
     #1) Create an empty list to receive positive detection windows
     on_windows = []
+    all_features = []
     #2) Iterate over all windows in the list
     for window in windows:
         #3) Extract the test window from original image
@@ -223,11 +227,56 @@ def search_windows(img, windows, clf, scaler, color_space='RGB',
                             hog_channel=hog_channel, spatial_feat=spatial_feat,
                             hist_feat=hist_feat, hog_feat=hog_feat)
         #5) Scale extracted features to be fed to classifier
-        test_features = scaler.transform(np.array(features).reshape(1, -1))
+        test_features = np.array(features).reshape(1, -1)
+
         #6) Predict using your classifier
         prediction = clf.predict(test_features)
+
         #7) If positive (prediction == 1) then save the window
         if prediction == 1:
             on_windows.append(window)
     #8) Return windows for positive detections
     return on_windows
+
+def create_windows(pyramid, image_size):
+    output = []
+    for w_size, y_lims in pyramid:
+        windows = slide_window(image_size, x_start_stop=[None, None], y_start_stop=y_lims,
+                        xy_window=w_size, xy_overlap=(0.5, 0.5))
+        output.extend(windows)
+    return output
+
+def multiscale_detect(image, clf, config, windows, verbose=False):
+    """
+    Finds bounding boxes for the detected vehicles.
+    """
+    color_space = config['color_space']
+    spatial_size = config['spatial_size']
+    hist_bins = config['hist_bins']
+    orient = config['orient']
+    pix_per_cell = config['pix_per_cell']
+    cell_per_block = config['cell_per_block']
+    hog_channel = config['hog_channel']
+    spatial_feat = config['spatial_feat']
+    hist_feat = config['hist_feat']
+    hog_feat = config['hog_feat']
+
+    hot_windows = search_windows(image, windows, clf, color_space=color_space,
+                        spatial_size=spatial_size, hist_bins=hist_bins,
+                        orient=orient, pix_per_cell=pix_per_cell,
+                        cell_per_block=cell_per_block,
+                        hog_channel=hog_channel, spatial_feat=spatial_feat,
+                        hist_feat=hist_feat, hog_feat=hog_feat)
+
+    # Detect bounding boxes
+    heatmap = np.zeros((image.shape[0],image.shape[1]), np.uint8)
+    for pt1, pt2 in hot_windows:
+        x1, y1 = pt1
+        x2, y2 = pt2
+        xv, yv = np.meshgrid(range(x1, x2), range(y1, y2))
+        heatmap[yv, xv] += 10
+
+    _, contours, _ = cv2.findContours(heatmap, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    bboxes = [cv2.boundingRect(pts) for pts in contours]
+
+    return bboxes
