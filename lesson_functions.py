@@ -41,6 +41,26 @@ def color_hist(img, nbins=32, bins_range=(0, 256)):
     # Return the individual histograms, bin_centers and feature vector
     return hist_features
 
+
+hog_desc = None
+
+def init_hog(img_shape, orient=9, pix_per_cell=8, cell_per_block=2, reset=False):
+    global hog_desc
+    if hog_desc is None or reset:
+        cell_size = (pix_per_cell, pix_per_cell)  # h x w in pixels
+        block_size = (cell_per_block, cell_per_block)  # h x w in cells
+        nbins = orient  # number of orientation bins
+
+        # winSize is the size of the image cropped to an multiple of the cell size
+        hog_desc = cv2.HOGDescriptor(_winSize=(img_shape[1] // cell_size[1] * cell_size[1],
+                                          img_shape[0] // cell_size[0] * cell_size[0]),
+                                _blockSize=(block_size[1] * cell_size[1],
+                                            block_size[0] * cell_size[0]),
+                                _blockStride=(cell_size[1], cell_size[0]),
+                                _cellSize=(cell_size[1], cell_size[0]),
+                                _nbins=nbins)
+
+    return hog_desc
 # Define a function to extract features from a list of images
 # Have this function call bin_spatial() and color_hist()
 def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
@@ -49,11 +69,19 @@ def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
                         spatial_feat=True, hist_feat=True, hog_feat=True):
     # Create a list to append feature vectors to
     features = []
+
+    hogd = None
     # Iterate through the list of images
     for file in imgs:
         file_features = []
         # Read in each one by one
         image = mpimg.imread(file)
+
+        if hogd is None:
+            hogd = init_hog(image.shape, orient, pix_per_cell, cell_per_block, True)
+
+        image = (image*255).astype(np.uint8)
+
         # apply color conversion if other than 'RGB'
         if color_space != 'RGB':
             if color_space == 'HSV':
@@ -78,15 +106,19 @@ def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
         if hog_feat == True:
         # Call get_hog_features() with vis=False, feature_vec=True
             if hog_channel == 'ALL':
-                hog_features = []
-                for channel in range(feature_image.shape[2]):
-                    hog_features.append(get_hog_features(feature_image[:,:,channel],
-                                        orient, pix_per_cell, cell_per_block,
-                                        vis=False, feature_vec=True))
-                hog_features = np.ravel(hog_features)
+            #     hog_features = []
+            #     for channel in range(feature_image.shape[2]):
+            #         hog_features.append(get_hog_features(feature_image[:,:,channel],
+            #                             orient, pix_per_cell, cell_per_block,
+            #                             vis=False, feature_vec=True))
+            #     hog_features = np.ravel(hog_features)
+                hog_features = hogd.compute(feature_image)[:,0]
             else:
-                hog_features = get_hog_features(feature_image[:,:,hog_channel], orient,
-                            pix_per_cell, cell_per_block, vis=False, feature_vec=True)
+                hog_features = hogd.compute(feature_image[:,:,hog_channel])[:,0]
+            #     hog_features = get_hog_features(feature_image[:,:,hog_channel], orient,
+            #                 pix_per_cell, cell_per_block, vis=False, feature_vec=True)
+
+
             # Append the new feature vector to the features list
             file_features.append(hog_features)
         features.append(np.concatenate(file_features))
@@ -160,6 +192,8 @@ def single_img_features(img, color_space='RGB', spatial_size=(32, 32),
                         spatial_feat=True, hist_feat=True, hog_feat=True):
     #1) Define an empty list to receive features
     img_features = []
+
+    hogd = None
     #2) Apply color conversion if other than 'RGB'
     if color_space != 'RGB':
         if color_space == 'HSV':
@@ -185,15 +219,13 @@ def single_img_features(img, color_space='RGB', spatial_size=(32, 32),
         img_features.append(hist_features)
     #7) Compute HOG features if flag is set
     if hog_feat == True:
+        if hogd is None:
+            hogd = init_hog(img.shape, orient, pix_per_cell, cell_per_block, True)
+
         if hog_channel == 'ALL':
-            hog_features = []
-            for channel in range(feature_image.shape[2]):
-                hog_features.extend(get_hog_features(feature_image[:,:,channel],
-                                    orient, pix_per_cell, cell_per_block,
-                                    vis=False, feature_vec=True))
+            hog_features = hogd.compute(feature_image)[:,0]
         else:
-            hog_features = get_hog_features(feature_image[:,:,hog_channel], orient,
-                        pix_per_cell, cell_per_block, vis=False, feature_vec=True)
+            hog_features = hogd.compute(feature_image[:,:,hog_channel])[:,0]
         #8) Append features to list
         img_features.append(hog_features)
 
@@ -242,7 +274,7 @@ def create_windows(pyramid, image_size):
     output = []
     for w_size, y_lims in pyramid:
         windows = slide_window(image_size, x_start_stop=[None, None], y_start_stop=y_lims,
-                        xy_window=w_size, xy_overlap=(0.5, 0.5))
+                        xy_window=w_size, xy_overlap=(0.3, 0.3))
         output.extend(windows)
     return output
 
