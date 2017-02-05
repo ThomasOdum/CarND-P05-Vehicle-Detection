@@ -263,7 +263,7 @@ def search_windows(img, windows, clf, color_space='RGB',
 
         #6) Predict using your classifier
         dec = clf.decision_function(test_features)
-        prediction = int(dec > 0.4)
+        prediction = int(dec > 0.5)
 
         #7) If positive (prediction == 1) then save the window
         if prediction == 1:
