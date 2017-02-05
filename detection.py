@@ -1,9 +1,9 @@
 import matplotlib.image as mpimg
 import numpy as np
 import cv2
-from skimage.feature import hog
 from scipy.ndimage.measurements import label
 from training import init_hog, bin_spatial, color_hist
+
 # Define a function that takes an image,
 # start and stop positions in both x and y,
 # window size (x and y dimensions),
@@ -107,7 +107,7 @@ def search_windows(img, windows, clf, color_space='RGB',
                     hist_range=(0, 256), orient=9,
                     pix_per_cell=8, cell_per_block=2,
                     hog_channel=0, spatial_feat=True,
-                    hist_feat=True, hog_feat=True, dec_threshold=0.5):
+                    hist_feat=True, hog_feat=True, dec_threshold=0.75):
 
     if spatial_size is None:
         spatial_size = (32, 32)

@@ -7,7 +7,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.feature_selection import SelectFromModel
-from skimage.feature import hog
 from sklearn.externals import joblib
 from sklearn.pipeline import Pipeline
 

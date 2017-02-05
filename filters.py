@@ -1,21 +1,10 @@
 import numpy as np
 
-class Kalman(object):
-    def __init__(F, H, R, Q):
-        self.F = F
-        self.H = H
-        self.R = R
-        self.Q = Q
-
-    def predict(self, x, P, u = None):
-        x1 = self.F @ x
-        P1 = self.F @ P @ self.F.T + self.Q
-
-        return x1, P1
 
 def kalman_predict(x, P, F, Q):
     """
-    Applies linear kalman filter to system
+    Prediction step of Kalman Filter
+    Propagates the dynamics of the system
 
     Parameters
     ----------
@@ -37,15 +26,17 @@ def kalman_predict(x, P, F, Q):
 
     return x, P
 
-def kalman_measure(z, x, P, H, R):
+def kalman_correct(z, x, P, H, R):
     """
+    Performs the correction step of the kalman filter
+
     H : numpy.array
         Measurement-State relationship matrix
     R : numpy.array
         Measurement covariance
     """
     I = np.eye(x.shape[0])
-    
+
     # measurement update
     Z = np.array(z)
     y = Z.T - (H @ x)

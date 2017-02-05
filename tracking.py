@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from filters import kalman_predict, kalman_measure
+from filters import kalman_predict, kalman_correct
 import itertools
 import functools
 import collections
@@ -105,7 +105,7 @@ class VehicleTracker(object):
     Tracks vehicle candidates using a Kalman filter
     """
     lock_threshold = -50
-    def __init__(self, img_size, process_noise = 100.0, measurement_noise = 2000.0, draw_threshold=-15):
+    def __init__(self, img_size, process_noise = 100.0, measurement_noise = 1000.0, draw_threshold=-25):
         """
         Parameters
         ----------
@@ -144,7 +144,7 @@ class VehicleTracker(object):
 
         self.P0 = np.eye(12)*10e3  # Initial covariance of any new candidate
         self.predict = functools.partial(kalman_predict, F = self.F, Q = self.Q)
-        self.measure = functools.partial(kalman_measure, H = self.H, R = self.R)
+        self.correct = functools.partial(kalman_correct, H = self.H, R = self.R)
 
         self.draw_threshold = draw_threshold
         self.candidates = []
@@ -180,9 +180,10 @@ class VehicleTracker(object):
             List of bounding boxes detected by the classifier (and heatmap)
         """
         measurements = non_max_suppression_fast(np.array(measurements), overlapThresh=0.01)
+        # measurements = np.array(measurements)
         meas_centroid = np.array([centroid(meas) for meas in measurements])
         if len(self.candidates) == 0:
-#             nonmax_meas = non_max_suppression_fast(np.array(measurements), overlapThresh=0.2)
+            # measurements = non_max_suppression_fast(np.array(measurements), overlapThresh=0.01)
             self.candidates = [self.create_candidate(meas) for meas in measurements]
         else:
             # Assign measurements to candidates based on overlap
@@ -209,7 +210,7 @@ class VehicleTracker(object):
                 x1, P1 = self.predict(x = cand['x'], P = cand['P'])
 
                 for meas in meas_list:
-                    x1, P1 = self.measure(z = meas, x = x1, P = P1)
+                    x1, P1 = self.correct(z = meas, x = x1, P = P1)
 
                 # Increment age if no measurements matched this candidate
                 if cand['age'] > self.lock_threshold:
@@ -231,8 +232,8 @@ class VehicleTracker(object):
         max_age : int
             Maximum age of candidate before which it is deleted
         """
-        obox_tl = (0.05*self.img_size[1], 0.55*self.img_size[0])
-        obox_br = (0.95*self.img_size[1], 0.95*self.img_size[0])
+        obox_tl = (0.10*self.img_size[1], 0.55*self.img_size[0])
+        obox_br = (0.90*self.img_size[1], 0.90*self.img_size[0])
         self.candidates = [c for c in self.candidates if c['age'] <= max_age
                            if c['x'][1] >= obox_tl[1] or c['x'][0] >= obox_tl[0]]
 
@@ -241,8 +242,12 @@ class VehicleTracker(object):
 
         for c in self.candidates:
             bbox = c['x'][:4].astype(np.int32)
-            if c['age'] > self.draw_threshold:
+            cov = np.sqrt(np.trace(c['P'][:4]))
+            if c['age'] > self.draw_threshold and cov > 70.0:
                 continue
-            cv2.rectangle(image, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,255,0), 3)
+            if cov > 65.0:
+                cv2.rectangle(image, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (255,155,0), 2)
+            else:
+                cv2.rectangle(image, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,100,0), 3)
 
         return image

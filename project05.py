@@ -1,14 +1,28 @@
-"""CarND Project 05 - Vehicle Detection and Tracking"""
+"""CarND Project 05 by Thomas Antony -- see http://www.thomasantony.com
+
+Usage:
+  project05.py MODEL INPUT OUTPUT
+  project05.py (-h | --help)
+
+Arguments:
+  MODEL             SKLearn model file created using Project05-Training.ipynb
+  INPUT             Input video file
+  OUTPUT            Output video filename
+
+Options:
+  -h --help         Show this screen.
+"""
 
 from detection import *
 from training import *
 from tracking import *
+from sklearn.externals import joblib
+from moviepy.editor import VideoFileClip
 
 def process_image(image, params):
     config, clf = params['clf_config'], params['clf']
 
     if 'windows' not in params:
-        print('Creating windows ...')
         pyramid = [((64, 64),  [400, 500]),
                    ((96, 96),  [400, 500]),
                    ((128, 128),[450, 578]),
@@ -73,29 +87,29 @@ def clear_cache():
 from docopt import docopt
 
 if __name__ == '__main__':
-    arguments = docopt(__doc__, version='Advanced Lane Lines 1.0')
+    arguments = docopt(__doc__, version='Vehicle Detection v1.0')
 
     clear_cache()
     model_file = arguments['MODEL']
-
-    print('Loading model ...')
-
-
     in_file = arguments['INPUT']
     out_file = arguments['OUTPUT']
 
-
+    print('Loading model ...')
+    data = joblib.load(model_file)
+    # data = joblib.load('models/clf_9869.pkl')
+    # svc = data['model']
+    clf = data['model']
+    config = data['config']
 
     clear_cache()
     params = {}
     params['clf_config'] = config
     params['clf'] = clf
-    params['windows'] = windows
     params['cache_enabled'] = True
     params['heatmap_cache_length'] = 25
     params['heatmap_threshold'] = 5
 
     print('Processing video ...')
     clip2 = VideoFileClip(in_file)
-    vid_clip = clip2.fl_image(process_image)
+    vid_clip = clip2.fl_image(lambda i: process_image(i, params))
     vid_clip.write_videofile(out_file, audio=False)
