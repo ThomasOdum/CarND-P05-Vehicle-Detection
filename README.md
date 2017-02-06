@@ -1,4 +1,4 @@
-# Project 04 - Advanced Lane Finding
+# Project 05 - Vehicle Detection and Tracking
 [![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
 ## README
@@ -96,9 +96,18 @@ In the video pipeline (described in the next section), the output of the `label`
 ## Video Implementation
 
 ### 1. Video Output
+
+#### Project Video
 [![Project video output](https://img.youtube.com/vi/16bwzrmeyvo/0.jpg)](https://youtu.be/16bwzrmeyvo)
 
 This same video can also be found at:  [project_video_out.mp4](./output/project_video_out.mp4)
+
+#### Challenge video
+
+The vehicle tracking pipeline was also run on the challenge video from project \#4.
+
+[![Challenge video output](https://img.youtube.com/vi/h6gvGambyxI/0.jpg)](https://youtu.be/h6gvGambyxI)
+
 
 
 ### 2. Kalman Filter and Thresholding
@@ -150,6 +159,6 @@ The current pipeline runs at a speed of ~3-6 frames per second on a 2011 Macbook
 
 ---
 
-**As an optional challenge** Once you have a working pipeline for vehicle detection, add in your lane-finding algorithm from the last project to do simultaneous lane-finding and vehicle detection!
+<!-- **As an optional challenge** Once you have a working pipeline for vehicle detection, add in your lane-finding algorithm from the last project to do simultaneous lane-finding and vehicle detection!
 
-**If you're feeling ambitious** (also totally optional though), don't stop there!  We encourage you to go out and take video of your own, and show us how you would implement this project on a new video!
+**If you're feeling ambitious** (also totally optional though), don't stop there!  We encourage you to go out and take video of your own, and show us how you would implement this project on a new video! -->
