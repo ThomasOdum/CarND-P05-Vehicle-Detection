@@ -38,7 +38,6 @@ Trained SKlearn classifier model files are stored in the `models` folder. The be
 [image5]: ./figures/img50.jpg
 [image6]: ./figures/example_output.jpg
 [video1]: ./output/project_video_out.mp4
-[ref1]: http://stackoverflow.com/questions/6090399/get-hog-image-features-from-opencv-python
 
 ## Histogram of Oriented Gradients (HOG)
 
@@ -129,7 +128,7 @@ The heatmap was then added up over 25 frames, and any pixels below a threshold o
 
 The process of tracking the vehicle, given a set of bounding boxes from the thresholded heatmap is performed by the `VehicleTracker` class in `tracking.py`. After the clusters were extracted from the heatmap using `scipy.ndimage.measurements.label`, the bounding boxes were passed in as measurements to a Kalman Filter.
 
-The main chunk of the tracking task is implemented the `track` method of `VehicleTracker` class. The first step in the process is to perform non-maximum suppression of the bounding boxes to remove duplicates.
+The tracking process is mainly done by the `track` method of the `VehicleTracker` class. The first step in the process is to perform non-maximum suppression of the bounding boxes to remove duplicates.
 
 The following rules were used to identify possible candidates for tracking. These are implemented in lines 182-208 of `tracking.py`.
 
@@ -160,6 +159,11 @@ The pipeline still detects a few false positives. One thing that can help make t
 The current pipeline runs at a speed of ~3-6 frames per second on a 2011 Macbook Pro. Using convolutional neural networks for the initial segmentation of the image might be much faster than a Support Vector Machine classifier such as the one used here. This might enable real-time vehicle detection and tracking.
 
 ---
+### References
+
+[1] "Get HOG image features from OpenCV + Python?" http://stackoverflow.com/questions/6090399/get-hog-image-features-from-opencv-python
+
+[2] Malisiewicz et al., "Faster Non-maximum Suppression in Python" http://www.pyimagesearch.com/2015/02/16/faster-non-maximum-suppression-python/
 
 <!-- **As an optional challenge** Once you have a working pipeline for vehicle detection, add in your lane-finding algorithm from the last project to do simultaneous lane-finding and vehicle detection!
 
