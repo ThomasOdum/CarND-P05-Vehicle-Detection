@@ -208,9 +208,10 @@ class VehicleTracker(object):
             for i, cand in enumerate(self.candidates):
                 meas_list = cand_measurements[i]
                 x1, P1 = self.predict(x = cand['x'], P = cand['P'])
-
-                for meas in meas_list:
-                    x1, P1 = self.correct(z = meas, x = x1, P = P1)
+                meas = sum(meas_list)/len(meas_list)
+                # for meas in meas_list:
+                #     x1, P1 = self.correct(z = meas, x = x1, P = P1)
+                x1, P1 = self.correct(z = meas, x = x1, P = P1)
 
                 # Increment age if no measurements matched this candidate
                 if cand['age'] > self.lock_threshold:

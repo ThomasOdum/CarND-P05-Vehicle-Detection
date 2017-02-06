@@ -22,11 +22,19 @@ from moviepy.editor import VideoFileClip
 def process_image(image, params):
     config, clf = params['clf_config'], params['clf']
 
+# pyramid = [((48, 48),  [400, 500]),
+#            ((64, 64),  [400, 550]),
+#            ((96, 96),  [450, 550]),
+#            ((128, 128),[550, None]),
+#         #    ((192, 192),[450, None]),
+#       ]
+
     if 'windows' not in params:
-        pyramid = [((64, 64),  [400, 500]),
+        pyramid = [#((48, 48),  [400, 500]),
+                   ((64, 64),  [400, 500]),
                    ((96, 96),  [400, 500]),
-                   ((128, 128),[450, 578]),
-                   ((192, 192),[450, None]),
+                   ((128, 128),[450, None]),
+                #    ((192, 192),[450, None]),
               ]
 
         image_size = image.shape[:2]
@@ -37,7 +45,7 @@ def process_image(image, params):
         cache = process_image.cache
         if cache['heatmaps'] is None:
             cache['heatmaps'] = collections.deque(maxlen=params['heatmap_cache_length'])
-
+            cache['last_heatmap'] = np.zeros(image.shape[:2])
         if 'tracker' not in cache:
             cache['tracker'] = VehicleTracker(image.shape)
         frame_ctr = cache['frame_ctr']
@@ -47,29 +55,27 @@ def process_image(image, params):
     windows = itertools.chain(*all_windows)
 
     measurements = multiscale_detect(image, clf, config, windows)
+    current_heatmap = update_heatmap(measurements, image.shape)
     if not params['cache_enabled']:
-        current_heatmap = update_heatmap(measurements, image.shape)
         thresh_heatmap = current_heatmap
         thresh_heatmap[thresh_heatmap < params['heatmap_threshold']] = 0
         cv2.GaussianBlur(thresh_heatmap, (31,31), 0, dst=thresh_heatmap)
 
         labels = label(thresh_heatmap)
         im2 = draw_labeled_bboxes(np.copy(image), labels)
-
     else:
-        Z = []
-        current_heatmap = update_heatmap(measurements, image.shape)
         cache['heatmaps'].append(current_heatmap)
         thresh_heatmap = sum(cache['heatmaps'])
 
         thresh_heatmap[thresh_heatmap < params['heatmap_threshold']] = 0
         cv2.GaussianBlur(thresh_heatmap, (31,31), 0, dst=thresh_heatmap)
         labels = label(thresh_heatmap)
-
+        Z = []
         for car_number in range(1, labels[1]+1):
-            nonzero = (labels[0] == car_number).nonzero()
-            nonzeroy = np.array(nonzero[0])
-            nonzerox = np.array(nonzero[1])
+            # nonzero = (labels[0] == car_number).nonzero()
+            nonzeroy, nonzerox = np.where(labels[0] == car_number)
+            # nonzeroy = np.array(nonzero[0])
+            # nonzerox = np.array(nonzero[1])
             Z.append((np.min(nonzerox), np.min(nonzeroy), np.max(nonzerox), np.max(nonzeroy)))
         tracker.detect(Z)
         im2 = tracker.draw_bboxes(np.copy(image))
@@ -78,7 +84,7 @@ def process_image(image, params):
 
 def clear_cache():
     process_image.cache = {
-        'meas': None,
+        'last_heatmap': None,
         'heatmaps': None,
         'frame_ctr': 0
     }
@@ -107,7 +113,7 @@ if __name__ == '__main__':
     params['clf'] = clf
     params['cache_enabled'] = True
     params['heatmap_cache_length'] = 25
-    params['heatmap_threshold'] = 5
+    params['heatmap_threshold'] = 10
 
     print('Processing video ...')
     clip2 = VideoFileClip(in_file)
