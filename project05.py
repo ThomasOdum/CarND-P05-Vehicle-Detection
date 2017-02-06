@@ -22,20 +22,11 @@ from moviepy.editor import VideoFileClip
 def process_image(image, params):
     config, clf = params['clf_config'], params['clf']
 
-# pyramid = [((48, 48),  [400, 500]),
-#            ((64, 64),  [400, 550]),
-#            ((96, 96),  [450, 550]),
-#            ((128, 128),[550, None]),
-#         #    ((192, 192),[450, None]),
-#       ]
-
     if 'windows' not in params:
-        pyramid = [#((48, 48),  [400, 500]),
-                   ((64, 64),  [400, 500]),
+        pyramid = [((64, 64),  [400, 500]),
                    ((96, 96),  [400, 500]),
-                   ((128, 128),[450, None]),
-                #    ((192, 192),[450, None]),
-              ]
+                   ((128, 128),[450, 600]),
+                  ]
 
         image_size = image.shape[:2]
         params['windows'] = create_windows(pyramid, image_size)
@@ -72,12 +63,9 @@ def process_image(image, params):
         labels = label(thresh_heatmap)
         Z = []
         for car_number in range(1, labels[1]+1):
-            # nonzero = (labels[0] == car_number).nonzero()
             nonzeroy, nonzerox = np.where(labels[0] == car_number)
-            # nonzeroy = np.array(nonzero[0])
-            # nonzerox = np.array(nonzero[1])
             Z.append((np.min(nonzerox), np.min(nonzeroy), np.max(nonzerox), np.max(nonzeroy)))
-        tracker.detect(Z)
+        tracker.track(Z)
         im2 = tracker.draw_bboxes(np.copy(image))
 
     return im2
@@ -102,8 +90,7 @@ if __name__ == '__main__':
 
     print('Loading model ...')
     data = joblib.load(model_file)
-    # data = joblib.load('models/clf_9869.pkl')
-    # svc = data['model']
+
     clf = data['model']
     config = data['config']
 

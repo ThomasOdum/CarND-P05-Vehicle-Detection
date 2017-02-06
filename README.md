@@ -30,94 +30,125 @@ To run the program on a video:
 Trained SKlearn classifier model files are stored in the `models` folder. The best one so far is `models/clf_9885_newhog.pkl`
 
 ---
-###Histogram of Oriented Gradients (HOG)
+[//]: # (Image References)
+[image1]: ./figures/car_not_car.png
+[image2]: ./figures/HOG_example.png
+[image3]: ./figures/sliding_windows.png
+[image4]: ./figures/sliding_window_output.png
+[image5]: ./figures/img50.jpg
+[image6]: ./figures/example_output.jpg
+[video1]: ./output/project_video_out.mp4
+[ref1]: http://stackoverflow.com/questions/6090399/get-hog-image-features-from-opencv-python
 
-####1. Explain how (and identify where in your code) you extracted HOG features from the training images.
+## Histogram of Oriented Gradients (HOG)
 
-The code for this step is contained in the first code cell of the IPython notebook (or in lines # through # of the file called `some_file.py`).  
+### 1. Loading the training data
 
-I started by reading in all the `vehicle` and `non-vehicle` images.  Here is an example of one of each of the `vehicle` and `non-vehicle` classes:
+The code for this step is contained in the second and third code cells of the IPython notebook `Project05-Training.ipynb` as well as lines 13-134 of `training.py`.
+
+First, the `glob` package is used to read in all the files in the data-set. Here is an example of one of each of the `vehicle` and `non-vehicle` classes:
 
 ![alt text][image1]
 
-I then explored different color spaces and different `skimage.hog()` parameters (`orientations`, `pixels_per_cell`, and `cells_per_block`).  I grabbed random images from each of the two classes and displayed them to get a feel for what the `skimage.hog()` output looks like.
+### 2. HOG Parameters
 
-Here is an example using the `YCrCb` color space and HOG parameters of `orientations=8`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
-
+Different colorspaces and HoG parameters were explored. The final configuration was chosen according to the one which gave the best test-set accuracy from the classifier (described later). Here is an example using the Y channel of the `YUV` color space and HOG parameters of `orientations=8`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
 
 ![alt text][image2]
 
-####2. Explain how you settled on your final choice of HOG parameters.
+*Note: OpenCV's `HOGDescriptor` class was used in place of `skimage.hog` as it was found to be significantly faster. The method `init_hog` in `training.py` initializes the descriptor with the parameters and then it is re-used for the rest of the process.*
 
-I tried various combinations of parameters and...
 
-####3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
+### 3. Training the classifier
 
-I trained a linear SVM using...
+A `LinearSVC` was used as the classifier for this project. The training process can be seen in code cells 4-6 of `Project05-Training.ipynb`. The features are extracted and concatenated using functions in `training.py`. This includes HOG features, spatial features and color histograms. The classifier is set up as a pipeline that includes a scaler as shown below:
 
-###Sliding Window Search
+```python
+clf = Pipeline([('scaling', StandardScaler()),
+                ('classification', LinearSVC(loss='hinge')),
+               ])
+```
+This keeps the scaling factors embedded in the model object when saved to a file. One round of hard negative mining was also used to enhance the results. This was done by making copies of images that were identified as false positives and adding them to the training data set. This improved the performance of the classifier. The model stored in the file `models/clf_9885_newhog.pkl` obtained a test accuracy of 98.85% where the test-set was 20% of the total data.
 
-####1. Describe how (and identify where in your code) you implemented a sliding window search.  How did you decide what scales to search and how much to overlap windows?
+## Sliding Window Search
 
-I decided to search random window positions at random scales all over the image and came up with this (ok just kidding I didn't actually ;):
+### 1. Scales of Windows and Overlap
+
+The function `create_windows` in lines 141-147 of `detection.py` was used to generate the list of windows to search. The input to the function specifies both the window size, along with the 'y' range of the image that the window is to be applied to. Different scales were explored and the following set was eventually selected based on classification performance:
+
+| Window size | Y-range     |
+|-------------|-------------|
+| (64, 64)    | [400, 500]  |
+| (96, 96)    | [400, 500]  |
+| (128, 128)  | [450, 600] |
 
 ![alt text][image3]
 
-####2. Show some examples of test images to demonstrate how your pipeline is working.  What did you do to try to minimize false positives and reliably detect cars?
+#### 2. Image Pipeline
 
-Ultimately I searched on two scales using YCrCb 3-channel HOG features plus spatially binned color and histograms of color in the feature vector, which provided a nice result.  Here are some example images:
+The final image used the Y-channel of a YUV-image along with the sliding window approach shown above to detect windows of interest. These windows were used to create a heatmap which was then thresholded to remove false positives. This strategy is of course more effective in a video stream where there the heatmap is stacked over multiple frames. `scipy.ndimage.measurements.label` was then used to define clusters on this heatmap to be labeled as possible vehicles. This is shown in lines 48-56 of the  `process_image` function in `project05.py`. The heatmap is created using the `update_heatmap` function in `detection.py` in lines 171-186.
+
+In the video pipeline (described in the next section), the output of the `label` function was used as measurements for a Kalman Filter which estimated the corners of the bounding box.
 
 ![alt text][image4]
 ---
 
-### Video Implementation
+## Video Implementation
 
-####1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (somewhat wobbly or unstable bounding boxes are ok as long as you are identifying the vehicles most of the time with minimal false positives.)
-Here's a [link to my video result](./project_video.mp4)
+### 1. Video Output
+[![Project video output](https://img.youtube.com/vi/16bwzrmeyvo/0.jpg)](https://youtu.be/16bwzrmeyvo)
+
+This same video can also be found at:  [project_video_out.mp4](./output/project_video_out.mp4)
 
 
-####2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
+### 2. Kalman Filter and Thresholding
 
-I recorded the positions of positive detections in each frame of the video.  From the positive detections I created a heatmap and then thresholded that map to identify vehicle positions.  I then used blob detection in Sci-kit Image (Determinant of a Hessian [`skimage.feature.blob_doh()`](http://scikit-image.org/docs/dev/auto_examples/plot_blob.html) worked best for me) to identify individual blobs in the heatmap and then determined the extent of each blob using [`skimage.morphology.watershed()`](http://scikit-image.org/docs/dev/auto_examples/plot_watershed.html). I then assumed each blob corresponded to a vehicle.  I constructed bounding boxes to cover the area of each blob detected.  
+#### Heatmap and Clustering
 
-Here's an example result showing the heatmap and bounding boxes overlaid on a frame of video:
+The pipeline worked by first creating a heatmap using all the windows marked as positive by the classifier. The first step to reducing false positives was to use classifier's decision function rather than the `predict` method. By setting a threshold on the decision function as shown below, many spurious detections were avoided:
 
-![alt text][image5]
+```python
+dec = clf.decision_function(test_features)
+prediction = int(dec > 0.75)
+```
+
+The heatmap was then added up over 25 frames, and any pixels below a threshold of 10 were zeroed out. This excluded any detections that didn't show up consistently in 10 out of the last 25 frames.
+
+#### Vehicle Tracking
+
+The process of tracking the vehicle, given a set of bounding boxes from the thresholded heatmap is performed by the `VehicleTracker` class in `tracking.py`. After the clusters were extracted from the heatmap using `scipy.ndimage.measurements.label`, the bounding boxes were passed in as measurements to a Kalman Filter.
+
+The main chunk of the tracking task is implemented the `track` method of `VehicleTracker` class. The first step in the process is to perform non-maximum suppression of the bounding boxes to remove duplicates.
+
+The following rules were used to identify possible candidates for tracking. These are implemented in lines 182-208 of `tracking.py`.
+
+1. If there are no candidates being tracked, assume all the non-max suppressed bounding boxes as possible tracking candidates.
+
+2. If there are candidates currently being tracked, compute the overlap between the measured bounding boxes as well as the distance between the centroids of these boxes and the candidates.
+
+3. The measured bounding boxes are assigned to a candidates based on the overlap as well as the distance between the centroids.
+
+Once each measurement has been assigned to an existing (or new) candidate, the Kalman Filter is used to update the state of each candidate. The filter uses the x and y positions of the top-left and bottom-right corners of the bounding box as the state along with their second and third derivatives.
+
+#### Cleanup
+
+The `cleanup` method in the `VehicleTracker` class removes stray vehicle candidates that haven't haven't been seen in a few frames or those that have gone beyond a pre-defined area of interest. This is implemented in lines 238-241 of `tracking.py`.
+
+Each candidate also has an "age" value that is initially set to zero. Once the age hits `-50`, the variable is locked, and the  candidate is assumed to be valid vehicle detection and permanently tracked even if it is not seen for a few frames. The Kalman Filter estimates the velocity of the bounding box and predicts the position whenever the measurements are lacking. A permanently tracked vehicle is only deleted once it goes outside a certain region-of-interest (horizon). This helps maintain the tracking even when vehicles are obscured.
+
+The is decremented by one any time the candidate has at least one measurement assigned to it. Conversely, the age is increased if no measurements are assigned to a candidate in a frame (assuming it's age > -50). Once the age reaches `5`, the candidate is considered a false positive and removed.
+
+There is also a threshold on the age at which a candidate is drawn on the image. An orange bounding box indicates that the covariance estimated by the Kalman filter has increased beyond a certain limit. This happens when a vehicle candidate is obscured behind another and hasn't been detected for a few frames.
 
 ---
 
-###Discussion
+### Discussion
 
-####1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
+The pipeline still detects a few false positives. One thing that can help make this more reliable would be a way to detect the horizon and automatically mask out only those places where a vehicle can show up.
 
+The current pipeline runs at a speed of ~3-6 frames per second on a 2011 Macbook Pro. Using convolutional neural networks for the initial segmentation of the image might be much faster than a Support Vector Machine classifier such as the one used here. This might enable real-time vehicle detection and tracking.
 
 ---
-
-In this project, your goal is to write a software pipeline to detect vehicles in a video, but the main output or product we want you to create is a detailed writeup of the project.  Check out the [writeup template](https://github.com/rykeenan/CarND-Vehicle-Detection/blob/master/writeup_template.md) for this project and use it as a starting point for creating your own writeup.  
-
-Creating a great writeup:
----
-A great writeup should include the rubric points as well as your description of how you addressed each point.  You should include a detailed description of the code used in each step (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
-
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :).
-
-You can submit your writeup in markdown or use another method and submit a pdf instead.
-
-The Project
----
-
-The goals / steps of this project are the following:
-
-* Perform a Histogram of Oriented Gradients (HOG) feature extraction on a labeled training set of images and train a classifier Linear SVM classifier
-* Optionally, you can also apply a color transform and append binned color features, as well as histograms of color, to your HOG feature vector.
-* Note: for those first two steps don't forget to normalize your features and randomize a selection for training and testing.
-* Implement a sliding-window technique and use your trained classifier to search for vehicles in images.
-* Run your pipeline on a video stream and create a heat map of recurring detections frame by frame to reject outliers and follow detected vehicles.
-* Estimate a bounding box for vehicles detected.
-
-Here are links to the labeled data for [vehicle](https://s3.amazonaws.com/udacity-sdc/Vehicle_Tracking/vehicles.zip) and [non-vehicle](https://s3.amazonaws.com/udacity-sdc/Vehicle_Tracking/non-vehicles.zip) examples to train your classifier.  These example images come from a combination of the [GTI vehicle image database](http://www.gti.ssr.upm.es/data/Vehicle_database.html), the [KITTI vision benchmark suite](http://www.cvlibs.net/datasets/kitti/), and examples extracted from the project video itself.   You are welcome and encouraged to take advantage of the recently released [Udacity labeled dataset](https://github.com/udacity/self-driving-car/tree/master/annotations) to augment your training data.  
-
-Some example images for testing your pipeline on single frames are located in the `test_images` folder.  To help the reviewer examine your work, please save examples of the output from each stage of your pipeline in the folder called `ouput_images`, and include them in your writeup for the project by describing what each image shows.    The video called `project_video.mp4` is the video your pipeline should work well on.  
 
 **As an optional challenge** Once you have a working pipeline for vehicle detection, add in your lane-finding algorithm from the last project to do simultaneous lane-finding and vehicle detection!
 

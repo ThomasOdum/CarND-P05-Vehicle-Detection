@@ -58,10 +58,10 @@ def single_img_features(img, color_space='RGB', spatial_size=(32, 32),
                         hist_bins=32, orient=9,
                         pix_per_cell=8, cell_per_block=2, hog_channel=0,
                         spatial_feat=True, hist_feat=True, hog_feat=True):
+
     #1) Define an empty list to receive features
     img_features = []
 
-    hogd = None
     #2) Apply color conversion if other than 'RGB'
     if color_space != 'RGB':
         if color_space == 'HSV':
@@ -87,8 +87,7 @@ def single_img_features(img, color_space='RGB', spatial_size=(32, 32),
         img_features.append(hist_features)
     #7) Compute HOG features if flag is set
     if hog_feat == True:
-        if hogd is None:
-            hogd = init_hog(img.shape, orient, pix_per_cell, cell_per_block, True)
+        hogd = init_hog(img.shape, orient, pix_per_cell, cell_per_block, False)
 
         if hog_channel == 'ALL':
             hog_features = hogd.compute(feature_image)[:,0]
@@ -145,7 +144,6 @@ def create_windows(pyramid, image_size):
         windows = slide_window(image_size, x_start_stop=[None, None], y_start_stop=y_lims,
                         xy_window=w_size, xy_overlap=(0.5, 0.5))
         output.append(windows)
-#         output.extend(windows)
     return output
 
 def multiscale_detect(image, clf, config, windows, verbose=False):

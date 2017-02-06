@@ -105,7 +105,7 @@ class VehicleTracker(object):
     Tracks vehicle candidates using a Kalman filter
     """
     lock_threshold = -50
-    def __init__(self, img_size, process_noise = 100.0, measurement_noise = 1000.0, draw_threshold=-25):
+    def __init__(self, img_size, process_noise = 100.0, measurement_noise = 1000.0, draw_threshold=-35):
         """
         Parameters
         ----------
@@ -170,7 +170,7 @@ class VehicleTracker(object):
 
         return {'x': np.array(x), 'P': np.copy(self.P0), 'age': 0}
 
-    def detect(self, measurements):
+    def track(self, measurements):
         """
         Uses measurements from OpenCV detect vehicles in the video stream
 
@@ -208,10 +208,12 @@ class VehicleTracker(object):
             for i, cand in enumerate(self.candidates):
                 meas_list = cand_measurements[i]
                 x1, P1 = self.predict(x = cand['x'], P = cand['P'])
-                meas = sum(meas_list)/len(meas_list)
+                if meas_list:
+                    meas = sum(meas_list)/len(meas_list)
+                    x1, P1 = self.correct(z = meas, x = x1, P = P1)
                 # for meas in meas_list:
                 #     x1, P1 = self.correct(z = meas, x = x1, P = P1)
-                x1, P1 = self.correct(z = meas, x = x1, P = P1)
+
 
                 # Increment age if no measurements matched this candidate
                 if cand['age'] > self.lock_threshold:
