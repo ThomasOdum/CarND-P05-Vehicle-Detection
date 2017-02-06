@@ -3,7 +3,7 @@
 
 ## README
 
-The code I used for doing this project can be found in `project05.py` and `Project05-Training.ipynb`. The main file imports functions defined in other files and any code references will specify the file it is being cited from. The following sections go into further detail about the specific points described in the [Rubric](https://review.udacity.com/#!/rubrics/513/view).
+The code I used for doing this project can be found in `project05.py` and `Project05-Training.ipynb`. The main file imports functions defined in other files -- `training.py`, `detection.py` and `tracking.py`. The upcoming sections go into further detail about the specific points described in the [Rubric](https://review.udacity.com/#!/rubrics/513/view).
 
 ### Usage
 
@@ -61,7 +61,9 @@ Different colorspaces and HoG parameters were explored. The final configuration 
 
 ### 3. Training the classifier
 
-A `LinearSVC` was used as the classifier for this project. The training process can be seen in code cells 4-6 of `Project05-Training.ipynb`. The features are extracted and concatenated using functions in `training.py`. This includes HOG features, spatial features and color histograms. The classifier is set up as a pipeline that includes a scaler as shown below:
+A `LinearSVC` was used as the classifier for this project. The training process can be seen in code cells 4-6 of `Project05-Training.ipynb`. The features are extracted and concatenated using functions in `training.py`. Since the training data consists of PNG files, and because of how `mpimg.imread` loads PNG files, the image data is scaled up to 0-255 before being passed into the feature extractor.
+
+The features include HOG features, spatial features and color histograms. The classifier is set up as a pipeline that includes a scaler as shown below:
 
 ```python
 clf = Pipeline([('scaling', StandardScaler()),
